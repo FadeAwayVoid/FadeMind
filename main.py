@@ -18,7 +18,7 @@ def ask_gpt(message_text):
         }
 
         data = {
-            "model": "openai/gpt-3.5-turbo",
+            "model": "deepseek-ai/deepseek-llm-rlhf-7b",
             "messages": [
                 {
                     "role": "system",
