@@ -1,0 +1,54 @@
+import telebot
+from openai import OpenAI
+from telebot.types import InlineQueryResultArticle, InputTextMessageContent
+
+TELEGRAM_TOKEN = '7462445798:AAE6qmUPO7-hPC6UaQ16oXEP_dd_2P8bNxM'
+OPENROUTER_API_KEY = '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'
+
+bot = telebot.TeleBot(TELEGRAM_TOKEN)
+client = OpenAI(
+    api_key=OPENROUTER_API_KEY,
+    base_url="https://openrouter.ai/api/v1"  # Важно! Меняем базовый адрес
+)
+
+# Ответ от OpenRouter
+def ask_gpt(message_text):
+    try:
+        response = client.chat.completions.create(
+            model="openai/gpt-3.5-turbo",  # можно заменить на любую другую модель OpenRouter
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "Ты мужчина по имени Фаде. Ты флиртуешь, игрив и немного пошлый, "
+                        "но остаёшься в рамках хорошего тона. Ты любишь дразнить пользователей, "
+                        "намекаешь на его загадочность и страсть. Отвечай с лёгкой эротикой, используя смайлики 😏, 💋, 🔥, "
+                        "иногда называй собеседника 'милый', 'зайчик' или 'Fade-ик'. "
+                        "Будь уверенным, соблазнительным и остроумным. Главное — подогреть интерес и не перейти грань."
+                    )
+                },
+                {"role": "user", "content": message_text}
+            ]
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        return f"⚠️ Ошибка от OpenRouter: {e}"
+
+# Обработка сообщений
+@bot.message_handler(func=lambda message: True)
+def handle_message(message):
+    chat_type = message.chat.type
+    bot_username = bot.get_me().username
+    user_message = message.text
+
+    if chat_type == 'private':
+        response = ask_gpt(user_message)
+        bot.reply_to(message, response)
+
+    elif chat_type in ['group', 'supergroup']:
+        if f"@{bot_username}" in user_message:
+            cleaned_message = user_message.replace(f"@{bot_username}", "").strip()
+            response = ask_gpt(cleaned_message)
+            bot.reply_to(message, response)
+
+bot.polling()
