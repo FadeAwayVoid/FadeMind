@@ -4,7 +4,7 @@ import os
 from flask import Flask, request
 
 TELEGRAM_TOKEN = '7462445798:AAE6qmUPO7-hPC6UaQ16oXEP_dd_2P8bNxM'
-OPENROUTER_API_KEY = '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'
+OPENROUTER_API_KEY = 'sk-b689a79387294988b18a40bd9a42b707'
 
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
 app = Flask(__name__)
