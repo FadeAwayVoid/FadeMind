@@ -9,8 +9,10 @@ OPENROUTER_API_KEY = 'sk-or-v1-e6747bdb4a8919b5a37abd0ff28380de130369f1ee359c2d5
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
 client = OpenAI(
     api_key=OPENROUTER_API_KEY,
-    base_url="https://openrouter.ai/api/v1"  # Важно! Меняем базовый адрес
+    base_url="https://openrouter.ai/api/v1",
+    default_headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}"}
 )
+
 
 app = Flask(__name__)
 
