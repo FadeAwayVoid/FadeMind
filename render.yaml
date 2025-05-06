@@ -2,5 +2,11 @@ services:
   - type: web
     name: fademind-bot
     env: python
+    plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: python main.py
+    envVars:
+      - key: TELEGRAM_TOKEN
+        value: 7462445798:AAE6qmUPO7-hPC6UaQ16oXEP_dd_2P8bNxM
+      - key: OPENROUTER_API_KEY
+        value: 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
