@@ -4,7 +4,7 @@ import os
 from flask import Flask, request
 
 TELEGRAM_TOKEN = '7462445798:AAE6qmUPO7-hPC6UaQ16oXEP_dd_2P8bNxM'
-OPENROUTER_API_KEY = 'sk-b689a79387294988b18a40bd9a42b707'
+OPENROUTER_API_KEY = '6c6cdf7f010c6f33e07832be20f04386a21a7d3bbe81c80d6377f1049b155998'
 
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
 app = Flask(__name__)
@@ -35,7 +35,7 @@ def ask_gpt(message_text):
         }
 
         response = requests.post(
-            "https://openrouter.ai/api/v1/chat/completions",
+            "https://api.together.xyz/v1",
             headers=headers,
             json=data
         )
