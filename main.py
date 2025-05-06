@@ -4,7 +4,7 @@ from openai import OpenAI
 from telebot.types import InlineQueryResultArticle, InputTextMessageContent
 
 TELEGRAM_TOKEN = '7462445798:AAE6qmUPO7-hPC6UaQ16oXEP_dd_2P8bNxM'
-OPENROUTER_API_KEY = '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'
+OPENROUTER_API_KEY = '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'
 
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
 client = OpenAI(
