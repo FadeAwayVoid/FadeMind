@@ -3,14 +3,8 @@ import requests
 import os
 from flask import Flask, request
 
-<<<<<<< HEAD
 TELEGRAM_TOKEN = '7462445798:AAE6qmUPO7-hPC6UaQ16oXEP_dd_2P8bNxM'
 OPENROUTER_API_KEY = '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'
-=======
-# Загружаем ключи из переменных окружения (удобно для Render)
-TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
-OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
->>>>>>> 06a3f2bf97b7405118a17bef46bcd76b16fd76dd
 
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
 app = Flask(__name__)
