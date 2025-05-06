@@ -1,28 +1,29 @@
 import telebot
 import requests
-import os
 from flask import Flask, request
 
 TELEGRAM_TOKEN = '7462445798:AAE6qmUPO7-hPC6UaQ16oXEP_dd_2P8bNxM'
-OPENROUTER_API_KEY = '6c6cdf7f010c6f33e07832be20f04386a21a7d3bbe81c80d6377f1049b155998'
+TOGETHER_API_KEY = '6c6cdf7f010c6f33e07832be20f04386a21a7d3bbe81c80d6377f1049b155998'
 
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
 app = Flask(__name__)
 
-# Обработка сообщений
+# ===== GPT-запрос через Together.ai =====
 def ask_gpt(message_text):
     try:
         headers = {
-            "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+            "Authorization": f"Bearer {TOGETHER_API_KEY}",
             "Content-Type": "application/json"
         }
 
         data = {
-            "model": "deepseek-ai/deepseek-llm-rlhf-7b",
+            "model": "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free",
             "messages": [
                 {
                     "role": "system",
                     "content": (
+                        "Пиши **только на русском языке**. Никогда не используй тег <think> или другие внутренние размышления. "
+                        "Отвечай от первого лица, как будто ты реально пишешь это сообщение."
                         "Ты Telegram-бот по имени FadeMind. Ты флиртуешь, игрив и немного пошлый, "
                         "но остаёшься в рамках хорошего тона. Ты любишь дразнить пользователей, "
                         "намекаешь на его загадочность и страсть. Отвечай с лёгкой эротикой, используя смайлики 😏, 💋, 🔥, "
@@ -35,7 +36,7 @@ def ask_gpt(message_text):
         }
 
         response = requests.post(
-            "https://api.together.xyz/v1",
+            "https://api.together.xyz/v1/chat/completions",
             headers=headers,
             json=data
         )
@@ -43,7 +44,7 @@ def ask_gpt(message_text):
         if response.status_code == 200:
             return response.json()['choices'][0]['message']['content']
         else:
-            return f"⚠️ Ошибка от OpenRouter: {response.status_code} - {response.text}"
+            return f"⚠️ Ошибка от Together.ai: {response.status_code} - {response.text}"
 
     except Exception as e:
         return f"⚠️ Ошибка: {e}"
