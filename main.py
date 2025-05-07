@@ -6,6 +6,8 @@ from collections import deque
 from gtts import gTTS
 from pydub import AudioSegment
 import tempfile
+import speech_recognition as sr
+import subprocess
 
 TELEGRAM_TOKEN = '7462445798:AAE6qmUPO7-hPC6UaQ16oXEP_dd_2P8bNxM'
 TOGETHER_API_KEY = '6c6cdf7f010c6f33e07832be20f04386a21a7d3bbe81c80d6377f1049b155998'
@@ -70,6 +72,40 @@ def text_to_voice(text):
         print(f"[gTTS ERROR] {e}")
         return None
 
+# ===== Распознование голосового сообщения =====
+def recognize_speech_from_voice(voice_file_id):
+    try:
+        # Получаем файл голосового сообщения
+        file_info = bot.get_file(voice_file_id)
+        downloaded_file = bot.download_file(file_info.file_path)
+
+        # Сохраняем его как временный .ogg файл
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".oga") as tmp_oga:
+            tmp_oga.write(downloaded_file)
+            oga_path = tmp_oga.name
+
+        # Конвертируем в .wav (для SpeechRecognition)
+        wav_path = oga_path.replace(".oga", ".wav")
+        subprocess.run(["ffmpeg", "-i", oga_path, wav_path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+        # Распознаём речь
+        recognizer = sr.Recognizer()
+        with sr.AudioFile(wav_path) as source:
+            audio_data = recognizer.record(source)
+            text = recognizer.recognize_google(audio_data, language="ru-RU")
+
+        return text
+
+    except sr.UnknownValueError:
+        return None
+    except Exception as e:
+        raise RuntimeError(f"Ошибка распознавания: {e}")
+    finally:
+        if os.path.exists(oga_path):
+            os.remove(oga_path)
+        if os.path.exists(wav_path):
+            os.remove(wav_path)
+
 # ===== Telegram Webhook =====
 @app.route(f"/{TELEGRAM_TOKEN}", methods=["POST"])
 def telegram_webhook():
@@ -118,6 +154,24 @@ def handle_voice_command(message):
             bot.send_voice(message.chat.id, audio_file)
     except Exception as e:
         bot.reply_to(message, f"⚠️ Ошибка при отправке аудио: {e}")
+
+# ===== Обработка голосового сообщения =====
+@bot.message_handler(content_types=['voice'])
+def handle_voice_message(message):
+    user_id = message.chat.id
+    try:
+        text = recognize_speech_from_voice(message.voice.file_id)
+        if not text:
+            bot.reply_to(message, "😕 Я не смогла разобрать, что ты сказал...")
+            return
+
+        bot.reply_to(message, f"📢 Ты сказал: {text}")
+        # Можно также подключить GPT:
+        # gpt_reply = ask_gpt_with_context(user_id, text)
+        # bot.reply_to(message, gpt_reply)
+
+    except Exception as e:
+        bot.reply_to(message, f"⚠️ Ошибка при распознавании: {e}")
 
 # ===== Установка Webhook =====
 @app.route("/", methods=["GET"])
