@@ -14,7 +14,9 @@ TOGETHER_API_KEY = '6c6cdf7f010c6f33e07832be20f04386a21a7d3bbe81c80d6377f1049b15
 
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
 app = Flask(__name__)
+
 user_context = {}
+user_reply_mode = {}  # user_id -> 'text' or 'voice'
 
 # ===== GPT с контекстом =====
 def ask_gpt_with_context(user_id, user_message):
@@ -134,26 +136,12 @@ def handle_message(message):
 
 # ===== Команда /voice =====
 @bot.message_handler(commands=["voice"])
-def handle_voice_command(message):
+def toggle_voice_mode(message):
     user_id = message.chat.id
-    user_input = message.text.replace("/voice", "").strip()
-
-    if not user_input:
-        bot.reply_to(message, "🔣 Напиши текст после команды /voice, чтобы я озвучил его.")
-        return
-
-    response = ask_gpt_with_context(user_id, user_input)
-    ogg_path = text_to_voice(response)
-
-    if not ogg_path or not os.path.exists(ogg_path) or os.path.getsize(ogg_path) == 0:
-        bot.reply_to(message, "❌ Не удалось озвучить текст. Попробуй позже.")
-        return
-
-    try:
-        with open(ogg_path, 'rb') as audio_file:
-            bot.send_voice(message.chat.id, audio_file)
-    except Exception as e:
-        bot.reply_to(message, f"⚠️ Ошибка при отправке аудио: {e}")
+    current = user_reply_mode.get(user_id, 'text')
+    new_mode = 'voice' if current == 'text' else 'text'
+    user_reply_mode[user_id] = new_mode
+    bot.reply_to(message, f"🎙 Режим ответов переключён на: *{new_mode}*", parse_mode='Markdown')
 
 # ===== Обработка голосового сообщения =====
 @bot.message_handler(content_types=['voice'])
