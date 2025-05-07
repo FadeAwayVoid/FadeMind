@@ -1,11 +1,13 @@
-import telebot
 import os
 import requests
+import telebot
 from flask import Flask, request
 from collections import deque
+from gtts import gTTS
+import tempfile
 
-TELEGRAM_TOKEN = '7462445798:AAE6qmUPO7-hPC6UaQ16oXEP_dd_2P8bNxM'
-TOGETHER_API_KEY = '6c6cdf7f010c6f33e07832be20f04386a21a7d3bbe81c80d6377f1049b155998'
+TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
+TOGETHER_API_KEY = os.environ.get("TOGETHER_API_KEY")
 
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
 app = Flask(__name__)
@@ -16,18 +18,15 @@ user_context = {}
 # ===== GPT-запрос с контекстом =====
 def ask_gpt_with_context(user_id, user_message):
     try:
-        # Инициализация истории пользователя, если нет
         if user_id not in user_context:
-            user_context[user_id] = deque(maxlen=10)  # 5 пар "user+assistant"
+            user_context[user_id] = deque(maxlen=10)
 
-        # Добавляем текущее сообщение
         user_context[user_id].append({"role": "user", "content": user_message})
 
-        # Формируем запрос
         messages = [{"role": "system", "content": (
             "Пиши **только на русском языке**. Никогда не используй тег <think> или другие внутренние размышления. "
             "Отвечай от первого лица, как будто ты реально пишешь это сообщение. "
-            "Ты Telegram-бот по имени FadeMind. Ты флиртуешь, игрив и немного пошлый, "
+            "Ты Telegram-бот по имени Фадеечка. Ты флиртуешь, игрив и немного пошлый, "
             "но остаёшься в рамках хорошего тона. Ты любишь дразнить пользователей, "
             "намекаешь на его загадочность и страсть. Отвечай с лёгкой эротикой, используя смайлики 😏, 💋, 🔥, "
             "иногда называй собеседника 'милый', 'зайчик'. "
@@ -52,7 +51,7 @@ def ask_gpt_with_context(user_id, user_message):
 
         if response.status_code == 200:
             reply = response.json()['choices'][0]['message']['content']
-            user_context[user_id].append({"role": "assistant", "content": reply})  # Сохраняем ответ
+            user_context[user_id].append({"role": "assistant", "content": reply})
             return reply
         else:
             return f"⚠️ Ошибка от Together.ai: {response.status_code} - {response.text}"
@@ -60,7 +59,14 @@ def ask_gpt_with_context(user_id, user_message):
     except Exception as e:
         return f"⚠️ Ошибка: {e}"
 
-# Telegram webhook обработка
+# ===== Генерация голосового сообщения =====
+def text_to_voice(text):
+    tts = gTTS(text=text, lang="ru")
+    tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
+    tts.save(tmp_file.name)
+    return tmp_file.name
+
+# ===== Обработка команд Telegram =====
 @app.route(f"/{TELEGRAM_TOKEN}", methods=["POST"])
 def telegram_webhook():
     json_str = request.get_data().decode("utf-8")
@@ -68,8 +74,8 @@ def telegram_webhook():
     bot.process_new_updates([update])
     return "ok", 200
 
-# Обработка входящих сообщений
-@bot.message_handler(func=lambda message: True)
+# ===== Обычные сообщения и GPT =====
+@bot.message_handler(func=lambda m: m.text and not m.text.startswith("/voice"))
 def handle_message(message):
     chat_type = message.chat.type
     bot_username = bot.get_me().username
@@ -86,7 +92,25 @@ def handle_message(message):
             response = ask_gpt_with_context(user_id, cleaned)
             bot.reply_to(message, response)
 
-# Установка webhook
+# ===== Команда /voice =====
+@bot.message_handler(commands=["voice"])
+def handle_voice_command(message):
+    user_text = message.text.replace("/voice", "").strip()
+
+    if not user_text:
+        bot.reply_to(message, "🗣 Напиши текст после команды /voice, чтобы я озвучил его.")
+        return
+
+    # Получаем ответ от GPT
+    gpt_reply = ask_gpt_with_context(user_id, user_input)
+
+    # Генерируем MP3 с gTTS
+    audio_path = text_to_voice(gpt_reply)
+
+    with open(audio_path, 'rb') as audio_file:
+        bot.send_voice(message.chat.id, audio_file)
+
+# ===== Webhook установка =====
 @app.route("/", methods=["GET"])
 def set_webhook():
     webhook_url = f"https://{os.environ.get('RENDER_EXTERNAL_HOSTNAME')}/{TELEGRAM_TOKEN}"
