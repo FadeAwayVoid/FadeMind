@@ -167,8 +167,8 @@ def handle_voice_message(message):
 
         bot.reply_to(message, f"📢 Ты сказал: {text}")
         # Можно также подключить GPT:
-        # gpt_reply = ask_gpt_with_context(user_id, text)
-        # bot.reply_to(message, gpt_reply)
+        gpt_reply = ask_gpt_with_context(user_id, text)
+        bot.reply_to(message, gpt_reply)
 
     except Exception as e:
         bot.reply_to(message, f"⚠️ Ошибка при распознавании: {e}")
