@@ -124,15 +124,28 @@ def handle_message(message):
     user_message = message.text or ""
     user_id = message.chat.id
 
+    response = None
+
     if chat_type == 'private':
         response = ask_gpt_with_context(user_id, user_message)
-        bot.reply_to(message, response)
 
     elif chat_type in ['group', 'supergroup']:
         if f"@{bot_username}" in user_message:
             cleaned = user_message.replace(f"@{bot_username}", "").strip()
             response = ask_gpt_with_context(user_id, cleaned)
+
+    if response:
+        reply_mode = user_reply_mode.get(user_id, 'text')
+        if reply_mode == 'voice':
+            ogg_path = text_to_voice(response)
+            if ogg_path and os.path.exists(ogg_path):
+                with open(ogg_path, 'rb') as audio_file:
+                    bot.send_voice(message.chat.id, audio_file)
+            else:
+                bot.reply_to(message, "⚠️ Не удалось озвучить ответ.")
+        else:
             bot.reply_to(message, response)
+
 
 # ===== Команда /voice =====
 @bot.message_handler(commands=["voice"])
