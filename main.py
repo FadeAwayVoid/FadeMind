@@ -5,6 +5,7 @@ from flask import Flask, request
 from collections import deque
 from gtts import gTTS
 import tempfile
+import subprocess
 
 TELEGRAM_TOKEN = '7462445798:AAE6qmUPO7-hPC6UaQ16oXEP_dd_2P8bNxM'
 TOGETHER_API_KEY = '6c6cdf7f010c6f33e07832be20f04386a21a7d3bbe81c80d6377f1049b155998'
@@ -60,11 +61,20 @@ def ask_gpt_with_context(user_id, user_message):
         return f"⚠️ Ошибка: {e}"
 
 # ===== Генерация голосового сообщения =====
-def text_to_voice(text):
+def text_to_voice_ogg(text):
+    # Сохраняем в mp3
     tts = gTTS(text=text, lang="ru")
-    tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
-    tts.save(tmp_file.name)
-    return tmp_file.name
+    mp3_path = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3").name
+    ogg_path = tempfile.NamedTemporaryFile(delete=False, suffix=".ogg").name
+
+    tts.save(mp3_path)
+
+    # Конвертируем mp3 -> ogg/opus
+    subprocess.run([
+        "ffmpeg", "-i", mp3_path, "-c:a", "libopus", "-b:a", "64k", ogg_path
+    ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+    return ogg_path
 
 # ===== Обработка команд Telegram =====
 @app.route(f"/{TELEGRAM_TOKEN}", methods=["POST"])
@@ -95,20 +105,18 @@ def handle_message(message):
 # ===== Команда /voice =====
 @bot.message_handler(commands=["voice"])
 def handle_voice_command(message):
-    user_text = message.text.replace("/voice", "").strip()
+    user_id = message.chat.id
+    user_input = message.text.replace("/voice", "").strip()
 
-    if not user_text:
-        bot.reply_to(message, "🗣 Напиши текст после команды /voice, чтобы я озвучил его.")
+    if not user_input:
+        bot.reply_to(message, "🗣 Напиши текст после команды /voice.")
         return
 
-    # Получаем ответ от GPT
     gpt_reply = ask_gpt_with_context(user_id, user_input)
 
-    # Генерируем MP3 с gTTS
-    audio_path = text_to_voice(gpt_reply)
-
-    with open(audio_path, 'rb') as audio_file:
-        bot.send_voice(message.chat.id, audio_file)
+    voice_path = text_to_voice_ogg(gpt_reply)
+    with open(voice_path, 'rb') as voice_file:
+        bot.send_voice(chat_id=message.chat.id, voice=voice_file)
 
 # ===== Webhook установка =====
 @app.route("/", methods=["GET"])
