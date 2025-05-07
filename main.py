@@ -6,8 +6,8 @@ from collections import deque
 from gtts import gTTS
 import tempfile
 
-TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
-TOGETHER_API_KEY = os.environ.get("TOGETHER_API_KEY")
+TELEGRAM_TOKEN = '7462445798:AAE6qmUPO7-hPC6UaQ16oXEP_dd_2P8bNxM'
+TOGETHER_API_KEY = '6c6cdf7f010c6f33e07832be20f04386a21a7d3bbe81c80d6377f1049b155998'
 
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
 app = Flask(__name__)
