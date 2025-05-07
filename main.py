@@ -165,7 +165,6 @@ def handle_voice_message(message):
             bot.reply_to(message, "😕 Я не смогла разобрать, что ты сказал...")
             return
 
-        bot.reply_to(message, f"📢 Ты сказал: {text}")
         # Можно также подключить GPT:
         gpt_reply = ask_gpt_with_context(user_id, text)
         bot.reply_to(message, gpt_reply)
