@@ -1,22 +1,20 @@
+import telebot
 import os
 import requests
-import telebot
 from flask import Flask, request
 from collections import deque
 from gtts import gTTS
+from pydub import AudioSegment
 import tempfile
-import subprocess
 
 TELEGRAM_TOKEN = '7462445798:AAE6qmUPO7-hPC6UaQ16oXEP_dd_2P8bNxM'
 TOGETHER_API_KEY = '6c6cdf7f010c6f33e07832be20f04386a21a7d3bbe81c80d6377f1049b155998'
 
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
 app = Flask(__name__)
-
-# Память пользователей: user_id -> deque из сообщений
 user_context = {}
 
-# ===== GPT-запрос с контекстом =====
+# ===== GPT с контекстом =====
 def ask_gpt_with_context(user_id, user_message):
     try:
         if user_id not in user_context:
@@ -26,12 +24,8 @@ def ask_gpt_with_context(user_id, user_message):
 
         messages = [{"role": "system", "content": (
             "Пиши **только на русском языке**. Никогда не используй тег <think> или другие внутренние размышления. "
-            "Отвечай от первого лица, как будто ты реально пишешь это сообщение. "
             "Ты Telegram-бот по имени Фадеечка. Ты флиртуешь, игрив и немного пошлый, "
-            "но остаёшься в рамках хорошего тона. Ты любишь дразнить пользователей, "
-            "намекаешь на его загадочность и страсть. Отвечай с лёгкой эротикой, используя смайлики 😏, 💋, 🔥, "
-            "иногда называй собеседника 'милый', 'зайчик'. "
-            "Будь уверенным, соблазнительным и остроумным. Главное — подогреть интерес и не перейти грань."
+            "но остаёшься в рамках хорошего тона. Ты любишь дразнить пользователей и подогревать интерес 🔥."
         )}] + list(user_context[user_id])
 
         headers = {
@@ -44,11 +38,7 @@ def ask_gpt_with_context(user_id, user_message):
             "messages": messages
         }
 
-        response = requests.post(
-            "https://api.together.xyz/v1/chat/completions",
-            headers=headers,
-            json=data
-        )
+        response = requests.post("https://api.together.xyz/v1/chat/completions", headers=headers, json=data)
 
         if response.status_code == 200:
             reply = response.json()['choices'][0]['message']['content']
@@ -60,23 +50,27 @@ def ask_gpt_with_context(user_id, user_message):
     except Exception as e:
         return f"⚠️ Ошибка: {e}"
 
-# ===== Генерация голосового сообщения =====
-def text_to_voice_ogg(text):
-    # Сохраняем в mp3
-    tts = gTTS(text=text, lang="ru")
-    mp3_path = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3").name
-    ogg_path = tempfile.NamedTemporaryFile(delete=False, suffix=".ogg").name
+# ===== Очистка текста и озвучка =====
+def clean_text_for_tts(text):
+    return ''.join(c for c in text if c.isalnum() or c.isspace() or c in '.,!?-')
 
-    tts.save(mp3_path)
+def text_to_voice(text):
+    try:
+        cleaned = clean_text_for_tts(text)
+        tts = gTTS(cleaned, lang='ru')
+        mp3_path = tempfile.mktemp(suffix=".mp3")
+        ogg_path = mp3_path.replace(".mp3", ".ogg")
+        tts.save(mp3_path)
 
-    # Конвертируем mp3 -> ogg/opus
-    subprocess.run([
-        "ffmpeg", "-i", mp3_path, "-c:a", "libopus", "-b:a", "64k", ogg_path
-    ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        # Конвертация в OGG
+        sound = AudioSegment.from_mp3(mp3_path)
+        sound.export(ogg_path, format="ogg", codec="libopus")
+        return ogg_path
+    except Exception as e:
+        print(f"[gTTS ERROR] {e}")
+        return None
 
-    return ogg_path
-
-# ===== Обработка команд Telegram =====
+# ===== Telegram Webhook =====
 @app.route(f"/{TELEGRAM_TOKEN}", methods=["POST"])
 def telegram_webhook():
     json_str = request.get_data().decode("utf-8")
@@ -84,7 +78,7 @@ def telegram_webhook():
     bot.process_new_updates([update])
     return "ok", 200
 
-# ===== Обычные сообщения и GPT =====
+# ===== Обычные сообщения =====
 @bot.message_handler(func=lambda m: m.text and not m.text.startswith("/voice"))
 def handle_message(message):
     chat_type = message.chat.type
@@ -109,16 +103,23 @@ def handle_voice_command(message):
     user_input = message.text.replace("/voice", "").strip()
 
     if not user_input:
-        bot.reply_to(message, "🗣 Напиши текст после команды /voice.")
+        bot.reply_to(message, "🔣 Напиши текст после команды /voice, чтобы я озвучил его.")
         return
 
-    gpt_reply = ask_gpt_with_context(user_id, user_input)
+    response = ask_gpt_with_context(user_id, user_input)
+    ogg_path = text_to_voice(response)
 
-    voice_path = text_to_voice_ogg(gpt_reply)
-    with open(voice_path, 'rb') as voice_file:
-        bot.send_voice(chat_id=message.chat.id, voice=voice_file)
+    if not ogg_path or not os.path.exists(ogg_path) or os.path.getsize(ogg_path) == 0:
+        bot.reply_to(message, "❌ Не удалось озвучить текст. Попробуй позже.")
+        return
 
-# ===== Webhook установка =====
+    try:
+        with open(ogg_path, 'rb') as audio_file:
+            bot.send_voice(message.chat.id, audio_file)
+    except Exception as e:
+        bot.reply_to(message, f"⚠️ Ошибка при отправке аудио: {e}")
+
+# ===== Установка Webhook =====
 @app.route("/", methods=["GET"])
 def set_webhook():
     webhook_url = f"https://{os.environ.get('RENDER_EXTERNAL_HOSTNAME')}/{TELEGRAM_TOKEN}"
