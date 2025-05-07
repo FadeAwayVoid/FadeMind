@@ -166,9 +166,18 @@ def handle_voice_message(message):
             bot.reply_to(message, "😕 Я не смогла разобрать, что ты сказал...")
             return
 
-        # Можно также подключить GPT:
         gpt_reply = ask_gpt_with_context(user_id, text)
-        bot.reply_to(message, gpt_reply)
+
+        reply_mode = user_reply_mode.get(user_id, 'text')
+        if reply_mode == 'voice':
+            ogg_path = text_to_voice(gpt_reply)
+            if ogg_path and os.path.exists(ogg_path):
+                with open(ogg_path, 'rb') as audio_file:
+                    bot.send_voice(message.chat.id, audio_file)
+            else:
+                bot.reply_to(message, "⚠️ Не удалось озвучить ответ.")
+        else:
+            bot.reply_to(message, gpt_reply)
 
     except Exception as e:
         bot.reply_to(message, f"⚠️ Ошибка при распознавании: {e}")
