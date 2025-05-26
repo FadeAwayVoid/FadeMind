@@ -10,9 +10,7 @@ import speech_recognition as sr
 import subprocess
 
 TELEGRAM_TOKEN = '7462445798:AAE6qmUPO7-hPC6UaQ16oXEP_dd_2P8bNxM'
-#TOGETHER_API_KEY = '6c6cdf7f010c6f33e07832be20f04386a21a7d3bbe81c80d6377f1049b155998'
-TOGETHER_API_KEY = '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'
-
+TOGETHER_API_KEY = '6c6cdf7f010c6f33e07832be20f04386a21a7d3bbe81c80d6377f1049b155998'
 
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
 app = Flask(__name__)
@@ -39,18 +37,18 @@ def ask_gpt_with_context(user_id, user_message):
         }
 
         data = {
-            "model": "deepseek/deepseek-chat-v3-0324:free",
+            "model": "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free",
             "messages": messages
         }
 
-        response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=data)
+        response = requests.post("https://api.together.xyz/v1/chat/completions", headers=headers, json=data)
 
         if response.status_code == 200:
             reply = response.json()['choices'][0]['message']['content']
             user_context[user_id].append({"role": "assistant", "content": reply})
             return reply
         else:
-            return f"⚠️ Ошибка от openrouter: {response.status_code} - {response.text}"
+            return f"⚠️ Ошибка от Together.ai: {response.status_code} - {response.text}"
 
     except Exception as e:
         return f"⚠️ Ошибка: {e}"
