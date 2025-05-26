@@ -10,7 +10,9 @@ import speech_recognition as sr
 import subprocess
 
 TELEGRAM_TOKEN = '7462445798:AAE6qmUPO7-hPC6UaQ16oXEP_dd_2P8bNxM'
-TOGETHER_API_KEY = '6c6cdf7f010c6f33e07832be20f04386a21a7d3bbe81c80d6377f1049b155998'
+#TOGETHER_API_KEY = '6c6cdf7f010c6f33e07832be20f04386a21a7d3bbe81c80d6377f1049b155998'
+TOGETHER_API_KEY = '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'
+
 
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
 app = Flask(__name__)
@@ -27,9 +29,8 @@ def ask_gpt_with_context(user_id, user_message):
         user_context[user_id].append({"role": "user", "content": user_message})
 
         messages = [{"role": "system", "content": (
-            "Пиши **только на русском языке**. Никогда не используй тег <think> или другие внутренние размышления. "
-            "Ты Telegram-бот по имени Фадеечка. Ты флиртуешь, игрив и немного пошлый, "
-            "но остаёшься в рамках хорошего тона. Ты любишь дразнить пользователей и подогревать интерес 🔥."
+            "Пиши **только на русском языке**. "
+            "Ты девушка по имени Фадеечка. В начале ты спросишь у пользователя, какой характер и особенности тебе использовать"
         )}] + list(user_context[user_id])
 
         headers = {
@@ -38,11 +39,11 @@ def ask_gpt_with_context(user_id, user_message):
         }
 
         data = {
-            "model": "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free",
+            "model": "deepseek/deepseek-chat-v3-0324:free",
             "messages": messages
         }
 
-        response = requests.post("https://api.together.xyz/v1/chat/completions", headers=headers, json=data)
+        response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=data)
 
         if response.status_code == 200:
             reply = response.json()['choices'][0]['message']['content']
