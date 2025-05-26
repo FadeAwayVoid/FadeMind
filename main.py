@@ -50,7 +50,7 @@ def ask_gpt_with_context(user_id, user_message):
             user_context[user_id].append({"role": "assistant", "content": reply})
             return reply
         else:
-            return f"⚠️ Ошибка от Together.ai: {response.status_code} - {response.text}"
+            return f"⚠️ Ошибка от openrouter: {response.status_code} - {response.text}"
 
     except Exception as e:
         return f"⚠️ Ошибка: {e}"
